@@ -1,0 +1,22 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.lcidarkuman.bussel.Home">
+    <item
+        android:id="@+id/action_refresh_data"
+        android:orderInCategory="100"
+        android:title="Reload Reports"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_update_location"
+        android:orderInCategory="100"
+        android:title="Update Location"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_change_password"
+        android:orderInCategory="100"
+        android:title="Change Password"
+        app:showAsAction="never" />
+</menu>

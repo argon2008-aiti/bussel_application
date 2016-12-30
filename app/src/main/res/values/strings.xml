@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">LCI Bussel Reporter</string>
+    <string name="prev_report">Past Reports</string>
+    <string name="action_settings">Settings</string>
+    <string name="lighthouse_name">Lighthouse Chapel \nInternational</string>
+    <string name="bussel_app_name">Bussel Reporting Platform</string>
+    <string name="title_activity_create_report">CreateReport</string>
+</resources>
