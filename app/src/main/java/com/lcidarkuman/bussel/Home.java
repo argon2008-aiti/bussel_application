@@ -1,16 +1,26 @@
 package com.lcidarkuman.bussel;
 
+import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.CountDownTimer;
+import android.provider.Settings;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -27,6 +37,7 @@ import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
 import com.google.android.gms.appindexing.Thing;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.jakewharton.processphoenix.ProcessPhoenix;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -35,6 +46,8 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,7 +70,7 @@ public class Home extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
-        getSupportActionBar().setTitle("Reports");
+        getSupportActionBar().setTitle("Bussel Reports");
 
         reportListView = (ListView) findViewById(R.id.reports_list);
 
@@ -74,7 +87,7 @@ public class Home extends AppCompatActivity {
                 view.startAnimation(animation1);
                 HashMap<String, String> report = new HashMap<String, String>();
                 report = busselReportList.get(position);
-                Toast.makeText(getApplicationContext(), report.get("topic"), Toast.LENGTH_SHORT ).show();
+                Toast.makeText(getApplicationContext(), report.get("topic"), Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -97,7 +110,7 @@ public class Home extends AppCompatActivity {
 
     @Override
     public void onDestroy() {
-        if(progressDialog!=null) {
+        if (progressDialog != null) {
             progressDialog.dismiss();
         }
         backGroundProcess.cancel(true);
@@ -119,6 +132,98 @@ public class Home extends AppCompatActivity {
         }
 
         if (id == R.id.action_update_location) {
+            LocationManager lm = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+            boolean gps_enabled = false;
+
+            try {
+                gps_enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+            } catch (Exception ex) {
+            }
+
+
+            if (!gps_enabled) {
+
+                new AlertDialog.Builder(this)
+                        .setMessage("GPS is disabled. Please enable it.")
+                        .setCancelable(false)
+                        .setPositiveButton("Enable GPS", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                // TODO Auto-generated method stub
+                                Intent myIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                                startActivity(myIntent);
+                            }
+                        })
+                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+
+                            @Override
+                            public void onClick(DialogInterface paramDialogInterface, int paramInt) {
+                                paramDialogInterface.dismiss();
+                            }
+                        })
+                        .show();
+            } else {
+                progressDialog = new ProgressDialog(Home.this);
+                progressDialog.setIndeterminate(true);
+                progressDialog.setMessage("Acquiring Location...");
+                progressDialog.setCancelable(false);
+                progressDialog.show();
+
+                final LocationManager locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+
+                final LocationListener locationListener = new LocationListener() {
+
+                    @Override
+                    public void onStatusChanged(String provider, int status, Bundle extras) {
+                        // TODO Auto-generated method stub
+
+                    }
+
+                    @Override
+                    public void onProviderEnabled(String provider) {
+                        // TODO Auto-generated method stub
+
+                    }
+
+                    @Override
+                    public void onProviderDisabled(String provider) {
+                        // TODO Auto-generated method stub
+
+                    }
+
+                    @Override
+                    public void onLocationChanged(Location location) {
+                        // TODO Auto-generated method stub
+                        if (location != null && location.getAccuracy()<=5) {
+                            GpsCoordinate gps = new GpsCoordinate();
+                            gps.latitude = location.getLatitude();
+                            gps.longitude = location.getLongitude();
+                            Log.d("GPS", "Location Acquired");
+                            new SendGPSLocation().execute(gps);
+
+                            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                // TODO: Consider calling
+                                return;
+                            }
+                            locationManager.removeUpdates(this);
+                        }
+
+                    }
+                };
+
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    // TODO: Consider calling
+                    //    ActivityCompat#requestPermissions
+                    // here to request the missing permissions, and then overriding
+                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                    //                                          int[] grantResults)
+                    // to handle the case where the user grants the permission. See the documentation
+                    // for ActivityCompat#requestPermissions for more details.
+                    //return TODO;
+                }
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
+
+            }
+
             return true;
         }
 
@@ -241,9 +346,10 @@ public class Home extends AppCompatActivity {
 
                     ListAdapter adapter = new SimpleAdapter(
                             Home.this, busselReportList,
-                            R.layout.list_item, new String[]{"topic", "date"},
+                            R.layout.list_item, new String[]{"topic", "date", "b_attendance"},
                             new int[]{R.id.report_topic,
-                                    R.id.report_date});
+                                    R.id.report_date,
+                            R.id.attendance});
 
                     reportListView.setAdapter(adapter);
                 } catch (JSONException e) {
@@ -256,6 +362,66 @@ public class Home extends AppCompatActivity {
     private class ServerResultWrapper {
         int resultCode;
         String resultString;
+    }
+
+    // background class to send GPS location
+    private class SendGPSLocation extends AsyncTask<GpsCoordinate, Void, Integer> {
+
+
+        @Override
+        protected void onPreExecute(){
+            Log.d("Debugging", "onPreExecute");
+            progressDialog.setMessage("Bussel location acquired. \n " +
+                    "Sending data to server...");
+        }
+
+
+        @Override
+        protected Integer doInBackground(GpsCoordinate... params) {
+            Log.d("Debugging", "doInBackground");
+            try {
+
+                URL url = new URL("http://lcidarkuman.herokuapp.com/bussels/update/location/?code="
+                        + CredentialsWrapper.code + "&lon=" + params[0].longitude + "&lat=" + params[0].latitude);
+
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setReadTimeout(15000 /* milliseconds */);
+                conn.setConnectTimeout(15000 /* milliseconds */);
+                conn.setRequestMethod("GET");
+
+                int responseCode = conn.getResponseCode();
+                return responseCode;
+
+            }
+
+            catch (Exception e) {
+                e.printStackTrace();
+                return -1;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(Integer responseCode){
+            progressDialog.dismiss();
+            Log.d("Debugging", "onPostExecute: "+ responseCode+ ":" + HttpURLConnection.HTTP_OK);
+            if (responseCode.intValue() == HttpURLConnection.HTTP_OK) {
+                Toast.makeText(Home.this, "Location updated.", Toast.LENGTH_LONG).show();
+            }
+
+            else if(responseCode.intValue()==-1){
+                Toast.makeText(Home.this, "Could not connect to server", Toast.LENGTH_LONG).show();
+            }
+
+            else {
+                Toast.makeText(Home.this, "Could not update location", Toast.LENGTH_LONG).show();
+            }
+
+        }
+    }
+
+    private class GpsCoordinate {
+        double longitude;
+        double latitude;
     }
 
 }
