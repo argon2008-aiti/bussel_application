@@ -32,5 +32,6 @@
         <activity android:name=".CreateReport" />
         <activity android:name=".PasswordChange"></activity>
     </application>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
 </manifest>
